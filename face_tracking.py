@@ -5,8 +5,8 @@ import cv2
 import pigpio
 import time
 
-xsv = 5		#X軸サーボのPort番号
-ysv = 4		#y軸サーボのPort番号
+xsv = 25		#X軸サーボのPort番号
+ysv = 24		#y軸サーボのPort番号
 span = 300	#サーボのセンターからの可動範囲duty値
 xct = 1550	#X軸サーボのセンターduty値
 yct = 1490	#X軸サーボのセンターduty値
