@@ -16,13 +16,13 @@ import matplotlib.pyplot as plt
 import io
 from PIL import Image
 
-xsv = 5		#X軸サーボのPort番号
-ysv = 4		#y軸サーボのPort番号
+xsv = 24		#X軸サーボのPort番号
+ysv = 25		#y軸サーボのPort番号
 span = 300	#サーボのセンターからの可動範囲duty値
 xct = 1550	#X軸サーボのセンターduty値
-yct = 1490	#X軸サーボのセンターduty値
+yct = 1549	#X軸サーボのセンターduty値
 dly = 0.01  #サーボ駆動時のウェイト時間
-stp = 10		#サーボ駆動時のdutyステップ値
+stp = 2		#サーボ駆動時のdutyステップ値
 xsize = 240	#RGB 水平サイズ
 ysize = 240	#RGB 垂直サイズ
 
@@ -65,13 +65,12 @@ def tharmal_plot(pix):
 
     # display
     img_pil = Image.open(buf)
-    img_array = cv2.cvtColor(np.asarray(img_pil), cv2.COLOR_RGBA2BGR)
-    return img_array
+    array_img = cv2.cvtColor(np.asarray(img_pil), cv2.COLOR_RGBA2BGR)
+    return array_img, temp_array
 
 #カメラをセンターに移動
-sv.set_servo_pulsewidth(xsv, xpos)
-sv.set_servo_pulsewidth(ysv, ypos)
-
+sv.set_servo_pulsewidth(xsv, xpos0)
+sv.set_servo_pulsewidth(ysv, ypos0)
 
 cascade_file = "./haarcascade_frontalface_default.xml"
 with picamera.PiCamera() as camera:
@@ -84,7 +83,7 @@ with picamera.PiCamera() as camera:
             camera.capture(stream, 'bgr', use_video_port=True)
             # サーモグラフィーからのヒートマップデータを格納
             pixels = sensor.read_temp()
-            tharmal_img = tharmal_plot(pixels)
+            tharmal_img, temp_array = tharmal_plot(pixels)
 
             # グレースケールに変換
             gray = cv2.cvtColor(stream.array, cv2.COLOR_BGR2GRAY)
@@ -95,10 +94,26 @@ with picamera.PiCamera() as camera:
 
             if len(face_list):
                 for (x, y, w, h) in face_list:
-                    print("face_position:",x, y, w, h)
                     color = (0, 0, 255)
-                    pen_w = 5
-                    cv2.rectangle(stream.array, (x, y), (x+w, y+h), color, thickness = pen_w)
+                    try:
+                        # 顔の認識範囲に合わせて配列絞り込み->体温を推定
+                        face_temp_array = temp_array[int(y/30):int((y+h)/30)][int(x/30):int((x+w)/30)]
+                        face_temp = np.amax(face_temp_array)
+                        result_text = 'temp: {}'.format(face_temp)
+                        print(result_text)
+                    except ValueError:
+                        break
+                    # 結果をプロット
+                    font = cv2.FONT_HERSHEY_SIMPLEX
+                    size = 0.7
+                    weight = 2
+                    color = (157, 216, 100)
+                    cv2.rectangle(stream.array, (x, y), (x+w, y+h), color, thickness = weight)
+
+                    #ラベルの作成
+                    cv2.rectangle(stream.array, (x, y - 15), (x + 50, y + 5), color, -1)
+                    cv2.putText(stream.array, str(face_temp), (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+
                 # カメラ移動
                 xdf = (x + w/2) - xsize/2
                 ydf = (y + h/2) - ysize/2
